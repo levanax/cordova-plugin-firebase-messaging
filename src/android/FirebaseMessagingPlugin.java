@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.app.Activity;
 
 import androidx.core.app.NotificationManagerCompat;
 
@@ -139,13 +140,28 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
         JSONObject options = args.getJSONObject(0);
         Context context = cordova.getActivity().getApplicationContext();
         forceShow = options.optBoolean("forceShow");
+        
+        // 检查通知权限
         if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
             callbackContext.success();
-        } else if (Build.VERSION.SDK_INT >= 33) {
+            return;
+        }
+        
+        // Android 13+ 需要运行时权限
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestPermissionCallback = callbackContext;
+            
+            // 检查是否已有权限
+            if (PermissionHelper.hasPermission(this, Manifest.permission.POST_NOTIFICATIONS)) {
+                callbackContext.success();
+                return;
+            }
+            
+            // 请求权限
             PermissionHelper.requestPermission(this, 0, Manifest.permission.POST_NOTIFICATIONS);
         } else {
-            callbackContext.error("Notifications permission is not granted");
+            // Android 12及以下版本，引导用户到设置页面
+            callbackContext.error("Notifications permission is not granted. Please enable in system settings.");
         }
     }
 
@@ -189,9 +205,21 @@ public class FirebaseMessagingPlugin extends ReflectiveCordovaPlugin {
             notificationData.put("google.sent_time", remoteMessage.getSentTime());
 
             if (instance != null) {
-                CallbackContext callbackContext = instance.isBackground ? instance.backgroundCallback
-                        : instance.foregroundCallback;
-                instance.sendNotification(notificationData, callbackContext);
+                // 改进前台/后台检测逻辑
+                boolean isAppInForeground = !instance.isBackground;
+                CallbackContext callbackContext = isAppInForeground ? instance.foregroundCallback
+                        : instance.backgroundCallback;
+                
+                // 确保前台消息能够被正确处理
+                if (isAppInForeground && instance.foregroundCallback != null) {
+                    Log.d(TAG, "Sending foreground notification");
+                    instance.sendNotification(notificationData, instance.foregroundCallback);
+                } else if (!isAppInForeground && instance.backgroundCallback != null) {
+                    Log.d(TAG, "Sending background notification");
+                    instance.sendNotification(notificationData, instance.backgroundCallback);
+                } else {
+                    Log.w(TAG, "No callback available for notification. Foreground: " + isAppInForeground);
+                }
             }
         } catch (JSONException e) {
             Log.e(TAG, "sendNotification", e);
