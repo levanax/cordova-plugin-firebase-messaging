@@ -45,7 +45,7 @@
 
 ## Installation
 
-    $ cordova plugin add cordova-plugin-firebase-messaging
+    $ cordova plugin add @levanax/cordova-plugin-firebase-messaging
 
 If you get an error about CocoaPods being unable to find compatible versions, run
     
@@ -53,7 +53,7 @@ If you get an error about CocoaPods being unable to find compatible versions, ru
 
 Use variables `IOS_FIREBASE_POD_VERSION` and `ANDROID_FIREBASE_BOM_VERSION` to override dependency versions on Android:
 
-    $ cordova plugin add cordova-plugin-firebase-messaging \
+    $ cordova plugin add @levanax/cordova-plugin-firebase-messaging \
         --variable IOS_FIREBASE_POD_VERSION="9.3.0" \
         --variable ANDROID_FIREBASE_BOM_VERSION="30.3.1"
 
